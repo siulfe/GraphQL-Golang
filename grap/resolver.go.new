@@ -1,0 +1,80 @@
+package grap
+
+import (
+	"context"
+) // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
+
+type Resolver struct{}
+
+func (r *Resolver) Mutation() MutationResolver {
+	return &mutationResolver{r}
+}
+func (r *Resolver) Query() QueryResolver {
+	return &queryResolver{r}
+}
+func (r *Resolver) Subscription() SubscriptionResolver {
+	return &subscriptionResolver{r}
+}
+
+type mutationResolver struct{ *Resolver }
+
+func (r *mutationResolver) Logout(ctx context.Context, id int) (int, error) {
+	panic("not implemented")
+}
+func (r *mutationResolver) Login(ctx context.Context, name string, password string) (*Token, error) {
+	panic("not implemented")
+}
+func (r *mutationResolver) CreateUser(ctx context.Context, input NewUser) (*User, error) {
+	panic("not implemented")
+}
+func (r *mutationResolver) CreateDireccion(ctx context.Context, input NewDireccion) (*Direccion, error) {
+	panic("not implemented")
+}
+func (r *mutationResolver) DeleteUser(ctx context.Context, id int) (*User, error) {
+	panic("not implemented")
+}
+func (r *mutationResolver) DeleteDireccion(ctx context.Context, id int) (*Direccion, error) {
+	panic("not implemented")
+}
+func (r *mutationResolver) UpdateUser(ctx context.Context, input UpdateUser) (*User, error) {
+	panic("not implemented")
+}
+func (r *mutationResolver) UpdateDireccion(ctx context.Context, input UpdateDireccion) (*Direccion, error) {
+	panic("not implemented")
+}
+func (r *mutationResolver) CreateMessage(ctx context.Context, input *NewMessage) (*Message, error) {
+	panic("not implemented")
+}
+func (r *mutationResolver) CreateGroup(ctx context.Context, userID int, title string) (*Group, error) {
+	panic("not implemented")
+}
+func (r *mutationResolver) UpdateGroup(ctx context.Context, input UpdateGroup) (*Group, error) {
+	panic("not implemented")
+}
+func (r *mutationResolver) DeleteGroup(ctx context.Context, id int) (int, error) {
+	panic("not implemented")
+}
+
+type queryResolver struct{ *Resolver }
+
+func (r *queryResolver) Users(ctx context.Context) ([]*User, error) {
+	panic("not implemented")
+}
+func (r *queryResolver) Direccions(ctx context.Context) ([]*Direccion, error) {
+	panic("not implemented")
+}
+func (r *queryResolver) Groups(ctx context.Context) ([]*Group, error) {
+	panic("not implemented")
+}
+func (r *queryResolver) Messages(ctx context.Context, groupID int) ([]*Message, error) {
+	panic("not implemented")
+}
+
+type subscriptionResolver struct{ *Resolver }
+
+func (r *subscriptionResolver) Direccions(ctx context.Context, token string) (<-chan []*Direccion, error) {
+	panic("not implemented")
+}
+func (r *subscriptionResolver) Messages(ctx context.Context, groupID int, token string) (<-chan []*Message, error) {
+	panic("not implemented")
+}
