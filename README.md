@@ -1,6 +1,5 @@
-# systemLotery
-Systema de loteria actualmente en desarrollo.
+Backend para un chat hecho con Graphql, Golang y Postgresql.
 
--Por falta de internet y tiempo libre, se montan avances una vez a la semana
+Consultas, mutaciones y suscribciones hechos con Graphql. Usando como lenguaje Backend "Golang", administrando una BD PGSQL la cual es creada directamente al ejecutar el progama en caso de que no exista previamente.
 
-"broli-sama"
+Uso de tokens, junto a sistema de login para los usuarios.
