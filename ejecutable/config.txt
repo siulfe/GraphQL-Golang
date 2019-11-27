@@ -1,0 +1,5 @@
+# Un comentario to rotisimo
+# Datos de admin no se muestran en la busqueda de direccion y usuarios
+port:8888
+url:user=postgres password=1234 dbname=chatg sslmode=disable
+url-create-DDBB:user=postgres password=1234 sslmode=disable

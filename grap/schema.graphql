@@ -1,0 +1,108 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+type Message{
+  id: Int!
+  message: String!
+  user_id: Int!
+  group_id: Int!
+  createAt: String
+}
+
+type Group{
+  id: Int!
+  title: String !
+  user_id: Int!
+  createAt: String
+  closeAt: String
+}
+
+type User{
+  id: Int!
+  password: String
+  rol: String!
+  name: String!
+  status_log: Boolean
+  last_name: String
+  identification: String!
+  createAt: String
+  updateAt: String
+  age: Int
+  direccion: Direccion
+}
+
+type Direccion{
+  id: Int!
+  casa: String!
+}
+
+type Token{
+  token: String!
+  expired_at: Int!
+}
+
+#*************************************************************************
+input NewMessage{
+  message: String!
+  user_id: Int!
+  group_id: Int!
+}
+
+input NewUser {
+    name: String!
+    last_name: String
+    identification: String!
+    age: Int
+    direccion: Int!
+    password: String
+}
+
+input UpdateUser{
+    id: Int!
+    name: String!
+    last_name: String
+    identification: String!
+    age: Int 
+}
+
+input NewDireccion{
+  casa: String!
+}
+
+input UpdateDireccion{
+  id:Int!
+  casa: String
+}
+
+input UpdateGroup{
+  id:Int!
+  title: String!
+}
+#**************************************************************************
+type Query{
+  users: [User]!
+  direccions: [Direccion]!
+  groups: [Group]!
+  messages(group_id:Int!): [Message]!
+}
+
+type Mutation{
+  logout(id:Int!):Int!
+  login(name:String!,password:String!): Token
+  createUser(input:NewUser!): User!
+  createDireccion(input:NewDireccion!): Direccion!
+  deleteUser(id:Int!): User!
+  deleteDireccion(id:Int!): Direccion!
+  updateUser(input: UpdateUser!): User!
+  updateDireccion(input: UpdateDireccion!): Direccion!
+  createMessage(input: NewMessage): Message!
+  createGroup(user_id:Int!, title: String!): Group!
+  updateGroup(input: UpdateGroup!): Group!
+  deleteGroup(id:Int!): Int!
+}
+
+type Subscription{
+  direccions(token:String!): [Direccion]!
+  messages(group_id:Int!,token:String!): [Message]!
+}

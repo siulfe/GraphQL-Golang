@@ -1,0 +1,463 @@
+package grap
+
+import (
+	"context"
+	"errors"
+	"strconv"
+	"log" 
+	"time"
+	"github.com/siulfe/gql/crypto"
+	_"github.com/dgrijalva/jwt-go"
+) // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
+
+
+var chanDireccions []chan []*Direccion
+
+var chanMessage []chanMessages
+
+var tokens map[string] int = make(map[string]int)
+
+type Resolver struct{}
+
+func (r *Resolver) Mutation() MutationResolver {
+	return &mutationResolver{r}
+}
+func (r *Resolver) Query() QueryResolver {
+	return &queryResolver{r}
+}
+func (r *Resolver) Subscription() SubscriptionResolver {
+	return &subscriptionResolver{r}
+}
+
+type mutationResolver struct{ *Resolver }
+
+func (r *mutationResolver) Logout(ctx context.Context, id int) (int, error) {
+	err := logoutUser(id)
+
+	if err != nil{
+		return 0,err
+	}
+
+	return 1,err
+}
+func (r *mutationResolver) Login(ctx context.Context, name string, password string) (*Token, error) {
+	var user = &User{Name: name, Password: &password}	
+
+	err := user.Login()
+
+	if err != nil{
+		return nil,err
+	}
+
+	expired := time.Now().Add(5 * time.Minute).Unix()
+
+	token := jwtCreate(user.Name,expired,user.Rol)
+
+	tokens[token] = int(expired)
+
+	obj := &Token{
+		Token: token,
+		ExpiredAt: int(time.Now().Add(60 * 24 * time.Minute).Unix()) ,
+	}
+
+	return obj,nil
+}
+
+func (r *mutationResolver) CreateUser(ctx context.Context, input NewUser) (*User, error) {
+	var p string	
+
+	if input.Password == nil{
+		p = "123456"
+		input.Password = &p
+	}
+
+	p, err := crypto.HashPassword(*input.Password)
+
+	input.Password = &p
+
+	if err != nil{
+		return nil,err
+	}
+
+	user := &User{
+	 Name :input.Name, 
+	 LastName: input.LastName,
+	 Rol: "user",
+	 Age : input.Age,
+	 Identification : input.Identification,
+	 Direccion: &Direccion{
+	 	ID: input.Direccion,
+	 },
+	 Password:input.Password,
+	}
+
+	err = user.Create()
+
+	if err != nil{
+		return nil,err
+	}
+
+	p=""
+	user.Password = &p
+
+	return user,nil
+}
+func (r *mutationResolver) CreateDireccion(ctx context.Context, input NewDireccion) (*Direccion, error) {
+	
+	auth := getAuth(ctx)
+
+	err := auth.validar("admin")
+
+	if err != nil{
+		return nil, err
+	}
+		
+	var direccion *Direccion = &Direccion{
+		Casa: input.Casa, 
+	}
+
+	err = direccion.Create();
+
+	if err != nil{
+		return nil, err
+	}
+
+	go enviarDireccion(chanDireccions)
+
+	return direccion,nil
+}
+func (r *mutationResolver) DeleteUser(ctx context.Context, id int) (*User, error) {
+	if id <= 0{
+		return nil,errors.New("ID invalido")
+	}
+
+	auth := getAuth(ctx)
+
+	err := auth.validar("admin")
+
+	if err != nil{
+		return nil,err
+	}
+
+	user := &User{ ID: id}
+
+	err = user.Delete()
+
+	if err != nil{
+		return nil, err
+	}
+
+	return user,err
+}
+func (r *mutationResolver) DeleteDireccion(ctx context.Context, id int) (*Direccion, error) {
+	auth := getAuth(ctx)
+
+	err := auth.validar("admin")
+
+	if err != nil{
+		return nil,err
+	}
+
+	direccion := &Direccion{ ID: id}
+
+	err = direccion.Delete()
+
+	if err != nil{
+		return nil,err
+	}
+
+	go enviarDireccion(chanDireccions)
+
+	return direccion,nil
+}
+func (r *mutationResolver) UpdateUser(ctx context.Context, input UpdateUser) (*User, error) {
+	
+
+	auth := getAuth(ctx)
+
+	err := auth.validar("user")
+
+	if err != nil{
+		err = auth.validar("admin")
+		if err != nil{
+			return nil,err
+		}
+	}
+
+	user := &User { 
+				 ID:input.ID , 
+				 Name: input.Name,
+				 LastName: input.LastName,
+				 Identification: input.Identification, 
+				 Age: input.Age,
+				}
+
+	err = user.Update()
+
+	if err != nil{
+		return nil,err
+	}
+
+	return user,err
+}
+func (r *mutationResolver) UpdateDireccion(ctx context.Context, input UpdateDireccion) (*Direccion, error) {
+	auth := getAuth(ctx)
+
+	err := auth.validar("admin")
+
+	if err != nil{
+		return nil,err
+	}
+
+	var casa string = ""
+
+	if input.Casa != nil {
+		casa = *input.Casa
+	}
+
+	direccion := &Direccion{
+		ID: input.ID,
+		Casa: casa,
+	}
+
+	err = direccion.Update()
+
+	if err != nil{
+		return nil,err
+	}
+
+	go enviarDireccion(chanDireccions)
+
+	return direccion,nil
+}
+func (r *mutationResolver) CreateMessage(ctx context.Context, input *NewMessage) (*Message, error) {
+	
+	auth := getAuth(ctx)
+
+	err := auth.validar("user")
+
+	if err != nil{
+		err = auth.validar("admin")
+		if err != nil{
+			return nil,err
+		}
+	}
+
+	var message *Message = &Message{
+		Message: input.Message,
+		UserID: input.UserID,
+		GroupID: input.GroupID,
+	}
+
+	err =message.Create()
+
+	if err != nil{
+		return nil,err
+	}
+
+	go EnviarMessage(chanMessage,input.GroupID)
+
+	return message,nil
+}
+func (r *mutationResolver) CreateGroup(ctx context.Context, userID int, title string) (*Group, error) {
+	auth := getAuth(ctx)
+
+	err := auth.validar("user")
+
+	if err != nil{
+		err = auth.validar("admin")
+		if err != nil{
+			return nil,err
+		}
+	}
+
+	var group *Group = &Group{UserID:userID,Title:title}
+
+	err = group.Create()
+
+	if err != nil{
+		return nil,err
+	}
+
+	return group,nil
+}
+func (r *mutationResolver) UpdateGroup(ctx context.Context, input UpdateGroup) (*Group, error) {
+	auth := getAuth(ctx)
+
+	err := auth.validar("user")
+
+	if err != nil{
+		err = auth.validar("admin")
+		if err != nil{
+			return nil,err
+		}
+	}
+
+	var group *Group = &Group{ID: input.ID, Title:input.Title}
+
+	err = group.Update()
+
+	if err != nil{
+		return nil,err
+	}
+
+	return group,nil
+}
+func (r *mutationResolver) DeleteGroup(ctx context.Context, id int) (int, error) {
+	auth := getAuth(ctx)
+
+	err := auth.validar("user")
+
+	if err != nil{
+		err = auth.validar("admin")
+		if err != nil{
+			return 0,err
+		}
+	}
+
+	var group *Group = &Group{ID: strconv.Itoa(id)}
+
+	err = group.Delete()
+
+	if err != nil{
+		return 0,err
+	}
+
+	return 1,nil	
+}
+//Query Resolver *******************************************************************************
+type queryResolver struct{ *Resolver }
+
+func (r *queryResolver) Users(ctx context.Context) ([]*User, error) {
+	auth := getAuth(ctx)
+
+	err := auth.validar("admin")
+
+	if err != nil{
+		return nil,err
+	}
+
+
+	user, err := GetAllUsers()
+	
+	log.Println(ctx)
+
+	return user,err
+}
+func (r *queryResolver) Direccions(ctx context.Context) ([]*Direccion, error) {
+	auth := getAuth(ctx)
+
+	err := auth.validar("user")
+
+	if err != nil{
+		err = auth.validar("admin")
+		if err != nil{
+			return nil,err
+		}
+	}
+
+
+	direccions, err := GetAllDireccions()
+
+	return direccions,err
+}
+func (r *queryResolver) Groups(ctx context.Context) ([]*Group, error) {
+	auth := getAuth(ctx)
+
+	err := auth.validar("user")
+
+	if err != nil{
+		err = auth.validar("admin")
+		if err != nil{
+			return nil,err
+		}
+	}
+
+
+	g,err := GetAllGroups()
+
+	return g,err
+}
+func (r *queryResolver) Messages(ctx context.Context, groupID int) ([]*Message, error) {
+	auth := getAuth(ctx)
+
+	err := auth.validar("user")
+
+	if err != nil{
+		err = auth.validar("admin")
+		if err != nil{
+			return nil,err
+		}
+	}
+
+
+	m,err := GetAllMessages(groupID)
+
+	return m,err
+}
+//Subscriptions Resolver **********************************************************************
+type subscriptionResolver struct{ *Resolver }
+
+func (r *subscriptionResolver) Direccions(ctx context.Context, token string) (<-chan []*Direccion, error) {
+	
+	id := UserIDFromToken(token)
+
+	roles := RolesFromToken(token)
+
+	auth := &UserAuth{
+		UserID: id,
+   		Roles: roles,
+	}
+
+	err := auth.validar("user")
+
+	log.Println("Auth: ",auth)
+
+	if err != nil{
+		err = auth.validar("admin")
+		if err != nil{
+			return nil,err
+		}
+	}
+
+	last := len(chanDireccions)
+
+	chanDireccions = append(chanDireccions, make(chan []*Direccion))
+
+	go enviarDireccionOneChanel(chanDireccions[last])
+
+	return chanDireccions[last], nil
+}
+
+func (r *subscriptionResolver) Messages(ctx context.Context, groupID int, token string) (<-chan []*Message, error) {
+	id := UserIDFromToken(token)
+
+	roles := RolesFromToken(token)
+
+	auth := &UserAuth{
+		UserID: id,
+   		Roles: roles,
+	}
+
+	err := auth.validar("user")
+
+	if err != nil{
+		err = auth.validar("admin")
+		if err != nil{
+			return nil,err
+		}
+	}
+
+	var chanel chan []*Message = make(chan []*Message)
+
+	var structChanel chanMessages = chanMessages{
+		GroupID : groupID,
+		chanel: chanel,
+	}
+
+	chanMessage = append(chanMessage,structChanel)
+
+	go EnviarMessageOneChanel(chanel,groupID)
+
+	return chanel,nil
+}
