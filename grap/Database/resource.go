@@ -69,7 +69,7 @@ var CREATE_USERG_TABLE string = `create table if not exists userg(
 							updateat timestamp,
 							age int,
 							identification varchar(255) not null,
-							direccion_id integer not null unique,
+							direccion_id integer not null,
 							status_logger bool not null default false,
 							primary key(id),
 							foreign key(direccion_id) references direccion(id)
